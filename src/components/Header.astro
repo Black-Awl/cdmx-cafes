@@ -1,9 +1,16 @@
 ---
-const siteName = "CDMX Cafes";
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import LanguageSwitcher from './LanguageSwitcher.astro';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const siteName = t('site.title');
 ---
 
 <header class="bg-base-100 shadow-lg">
-  <div class="container mx-auto px-4 py-6">
+  <div class="container mx-auto px-4 py-6 flex justify-between items-center">
     <h1 class="text-3xl font-bold text-primary">{siteName}</h1>
+    <LanguageSwitcher />
   </div>
 </header>

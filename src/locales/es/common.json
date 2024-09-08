@@ -1,0 +1,11 @@
+{
+    "site": {
+      "title": "Cafés CDMX",
+      "description": "¡Descubre los mejores lugares de café en la Ciudad de México!"
+    },
+    "nav": {
+      "home": "Inicio",
+      "cafes": "Cafés",
+      "about": "Acerca de"
+    }
+  }

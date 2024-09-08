@@ -1,0 +1,29 @@
+---
+import { languages, defaultLang } from '../i18n/ui';
+
+function getPathWithoutLang(pathname: string) {
+  const segments = pathname.split('/').filter(Boolean);
+  const firstSegment = segments[0];
+  
+  if (Object.keys(languages).includes(firstSegment)) {
+    return '/' + segments.slice(1).join('/');
+  }
+  
+  return pathname;
+}
+
+const currentPath = getPathWithoutLang(Astro.url.pathname);
+---
+
+<div class="dropdown dropdown-end">
+  <label tabindex="0" class="btn m-1">{Astro.currentLocale?.toUpperCase()}</label>
+  <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+    {Object.entries(languages).map(([lang, label]) => (
+      <li>
+        <a href={lang === defaultLang ? currentPath : `/${lang}${currentPath}`}>
+          {label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</div>

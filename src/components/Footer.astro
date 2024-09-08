@@ -1,9 +1,14 @@
 ---
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const currentYear = new Date().getFullYear();
 ---
 
 <footer class="bg-neutral text-neutral-content p-10">
   <div class="container mx-auto">
-    <p>CDMX Cafes is created with love by <a href="https://awl.black" alt="Coffee industry branding & design">Black Awl</a> & &copy; {currentYear}. All rights reserved.</p>
+    <p>{t('site.title')} is created with love by <a href="https://awl.black" alt="Coffee industry branding & design">Black Awl</a> & &copy; {currentYear}. All rights reserved.</p>
   </div>
 </footer>

@@ -1,0 +1,11 @@
+{
+    "site": {
+      "title": "CDMX Cafes",
+      "description": "Discover the best coffee spots in Mexico City!"
+    },
+    "nav": {
+      "home": "Home",
+      "cafes": "Cafes",
+      "about": "About"
+    }
+  }

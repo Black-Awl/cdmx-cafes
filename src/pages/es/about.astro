@@ -1,0 +1,12 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+---
+
+<Layout title={t('nav.about')}>
+  <h1 class="text-4xl font-bold mb-4">{t('nav.about')}</h1>
+  <!-- Add your about content here -->
+</Layout>

@@ -1,19 +1,23 @@
 ---
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import Header from '../components/Header.astro';
 import Navigation from '../components/Navigation.astro';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const { title } = Astro.props;
 ---
 
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>{title} | CDMX Cafes</title>
+    <title>{title} | {t('site.title')}</title>
   </head>
   <body class="flex flex-col min-h-screen">
     <Header />

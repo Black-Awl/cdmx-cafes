@@ -15,7 +15,6 @@
     "@tailwindcss/typography": "^0.5.15",
     "airtable": "^0.12.2",
     "astro": "^4.15.4",
-    "astro-i18n-aut": "^0.7.0",
     "autoprefixer": "^10.4.20",
     "daisyui": "^4.12.10",
     "postcss": "^8.4.45",

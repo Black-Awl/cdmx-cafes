@@ -1,8 +1,13 @@
 ---
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const navItems = [
-  { name: "Home", url: "/" },
-  { name: "Cafes", url: "/cafes" },
-  { name: "About", url: "/about" },
+  { name: t('nav.home'), url: `/${lang === 'en' ? '' : lang}` },
+  { name: t('nav.cafes'), url: `/${lang === 'en' ? '' : lang}/cafes` },
+  { name: t('nav.about'), url: `/${lang === 'en' ? '' : lang}/about` },
 ];
 ---
 
