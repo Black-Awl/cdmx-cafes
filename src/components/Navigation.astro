@@ -1,13 +1,17 @@
 ---
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { getLangFromUrl, useTranslations, defaultLang } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
+function localizedUrl(path: string) {
+  return lang === defaultLang ? path : `/${lang}${path}`;
+}
+
 const navItems = [
-  { name: t('nav.home'), url: `/${lang === 'en' ? '' : lang}` },
-  { name: t('nav.cafes'), url: `/${lang === 'en' ? '' : lang}/cafes` },
-  { name: t('nav.about'), url: `/${lang === 'en' ? '' : lang}/about` },
+  { name: t('nav.home'), url: localizedUrl('/') },
+  { name: t('nav.cafes'), url: localizedUrl('/cafes') },
+  { name: t('nav.about'), url: localizedUrl('/about') },
 ];
 ---
 

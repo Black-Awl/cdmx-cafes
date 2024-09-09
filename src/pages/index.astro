@@ -1,12 +1,94 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import cafes from '../data/cafes.json';
+import { fetchCafes } from '../api/airtable';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+let airtableCafes = [];
+try {
+  airtableCafes = await fetchCafes();
+  console.log('Fetched cafes:', airtableCafes);
+} catch (error) {
+  console.error('Error fetching cafes from Airtable:', error);
+}
 ---
 
 <Layout title={t('nav.home')}>
   <h1 class="text-4xl font-bold mb-4">{t('site.title')}</h1>
-  <p class="text-lg">{t('site.description')}</p>
+  <div id="map" class="w-full h-[600px]"></div>
+  
+  <!-- Display fetched cafes -->
+  <ul>
+    {airtableCafes.map((cafe) => (
+      <li>{cafe.name} - {cafe.address}</li>
+    ))}
+  </ul>
 </Layout>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: `https://api.maptiler.com/maps/toner/style.json?key=${import.meta.env.MAPTILER_API_KEY}`,
+    center: [-99.133208, 19.432608], // Mexico City coordinates
+    zoom: 12
+  });
+
+  // Add markers for cafes
+  fetch('/src/data/cafes.json')
+    .then(response => response.json())
+    .then(cafes => {
+      cafes.forEach(cafe => {
+        new maplibregl.Marker({ color: '#FFA500' }) // Cheese orange color
+          .setLngLat([cafe.longitude, cafe.latitude])
+          .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
+          .addTo(map);
+      });
+    });
+
+  // Get user's location and show nearby cafes
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const { latitude, longitude } = position.coords;
+      map.flyTo({ center: [longitude, latitude], zoom: 14 });
+      
+      // Add a custom marker for the user's location
+      const el = document.createElement('div');
+      el.className = 'maplibregl-user-location-dot';
+      
+      new maplibregl.Marker(el)
+        .setLngLat([longitude, latitude])
+        .addTo(map);
+
+      // TODO: Implement logic to show 3-5 nearby cafes
+    });
+  }
+</script>
+
+<style>
+  .maplibregl-user-location-dot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #4285F4;
+    box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
+    animation: pulse 3s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+    }
+  }
+</style>

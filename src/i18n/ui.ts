@@ -11,6 +11,7 @@ export const ui = {
     'nav.cafes': 'Cafes',
     'nav.about': 'About',
     'site.title': 'CDMX Cafes',
+    'site.author': 'is created with love by',
     'site.description': 'Discover the best coffee spots in Mexico City!',
   },
   es: {
@@ -18,6 +19,7 @@ export const ui = {
     'nav.cafes': 'Cafés',
     'nav.about': 'Acerca de',
     'site.title': 'Cafés CDMX',
+    'site.author': 'creado con amor por',
     'site.description': '¡Descubre los mejores lugares de café en la Ciudad de México!',
   },
 } as const;
