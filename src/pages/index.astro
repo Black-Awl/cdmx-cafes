@@ -31,6 +31,7 @@ try {
           <li class="mb-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" data-id={cafe.id}>
             <h3 class="font-bold">{cafe.name}</h3>
             <p class="text-sm">{cafe.address}</p>
+            <button class="get-directions mt-2" data-cafe-id={cafe.id}>Get Walking Directions</button>
           </li>
         ))}
       </ul>
@@ -38,6 +39,7 @@ try {
     <div id="map" class="w-3/4 h-[600px]"></div>
   </div>
   <a href="https://airtable.com/appSmf7rrgif6G7hf/pagwYKO3gSxcHtFe9/form" target="_blank" rel="noopener noreferrer" class="btn btn-primary mt-4">+ Add Cafe</a>
+  <button id="clear-route" class="btn btn-secondary mt-4 ml-4">Clear Route</button>
 </Layout>
 
 <script>
@@ -65,17 +67,43 @@ try {
   }
 
   function addMarker(cafe) {
-    const marker = new maplibregl.Marker({ color: '#FFA500' })
+    const el = document.createElement('div');
+    el.className = 'marker';
+    el.style.backgroundColor = '#FFA500';
+    el.style.width = '20px';
+    el.style.height = '20px';
+    el.style.borderRadius = '50%';
+    el.style.cursor = 'pointer';
+
+    const popupContent = `
+      <h3>${cafe.name}</h3>
+      <p>${cafe.address}</p>
+    `;
+
+    const marker = new maplibregl.Marker(el)
       .setLngLat([cafe.longitude, cafe.latitude])
-      .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
+      .setPopup(new maplibregl.Popup().setHTML(popupContent))
       .addTo(map);
     
-    marker.getElement().addEventListener('click', () => {
+    el.addEventListener('click', () => {
       closeAllPopupsExcept(cafe.id);
+      flyToStore(cafe);
       marker.togglePopup();
     });
 
     markers[cafe.id] = marker;
+  }
+
+  function flyToStore(cafe) {
+    map.flyTo({
+      center: [cafe.longitude, cafe.latitude],
+      zoom: 15,
+      speed: 0.5,
+      curve: 1,
+      easing(t) {
+        return t;
+      }
+    });
   }
 
   function fitMapToMarkers() {
@@ -87,6 +115,75 @@ try {
     map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   }
 
+  function addDirectionsButtonListener(button, cafe) {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const { latitude, longitude } = position.coords;
+          fetchAndDisplayRoute([longitude, latitude], [cafe.longitude, cafe.latitude]);
+        }, error => {
+          console.error('Error getting user location:', error);
+          alert('Unable to get your location. Please enable location services and try again.');
+        });
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+    });
+  }
+
+  async function fetchAndDisplayRoute(start, end) {
+    const apiKey = import.meta.env.PUBLIC_OPENROUTE_API_KEY;
+    const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${apiKey}&start=${start.join(',')}&end=${end.join(',')}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      const coordinates = data.features[0].geometry.coordinates;
+
+      if (map.getSource('route')) {
+        map.removeLayer('route');
+        map.removeSource('route');
+      }
+
+      map.addSource('route', {
+        'type': 'geojson',
+        'data': {
+          'type': 'Feature',
+          'properties': {},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': coordinates
+          }
+        }
+      });
+
+      map.addLayer({
+        'id': 'route',
+        'type': 'line',
+        'source': 'route',
+        'layout': {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        'paint': {
+          'line-color': '#888',
+          'line-width': 8
+        }
+      });
+
+      const bounds = coordinates.reduce((bounds, coord) => {
+        return bounds.extend(coord);
+      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+      map.fitBounds(bounds, { padding: 50 });
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      alert('Unable to fetch walking directions. Please try again later.');
+    }
+  }
+
   map.on('load', () => {
     cafesData.forEach(cafe => {
       if (cafe.latitude && cafe.longitude) {
@@ -94,46 +191,56 @@ try {
       }
     });
 
-    // Get user's location and show nearby cafes
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(position => {
-        const { latitude, longitude } = position.coords;
-        
-        // Add a custom marker for the user's location
-        const el = document.createElement('div');
-        el.className = 'maplibregl-user-location-dot';
+    fitMapToMarkers();
 
-        userMarker = new maplibregl.Marker({
-          element: el,
-          anchor: 'center'
-        })
-          .setLngLat([longitude, latitude])
-          .addTo(map);
-
-        fitMapToMarkers();
-      }, error => {
-        console.error('Error getting user location:', error);
-        fitMapToMarkers();
-      });
-    } else {
-      fitMapToMarkers();
-    }
-
-    // Add click event listeners to cafe list items
+    // Add click event listeners to cafe list items and direction buttons
     document.querySelectorAll('#cafe-list li').forEach(item => {
-      item.addEventListener('click', () => {
-        const cafeId = item.getAttribute('data-id');
-        const cafe = cafesData.find(c => c.id === cafeId);
-        if (cafe) {
+      const cafeId = item.getAttribute('data-id');
+      const cafe = cafesData.find(c => c.id === cafeId);
+      if (cafe) {
+        item.addEventListener('click', () => {
           closeAllPopupsExcept(cafeId);
-          map.flyTo({
-            center: [cafe.longitude, cafe.latitude],
-            zoom: 15
-          });
+          flyToStore(cafe);
           markers[cafeId].togglePopup();
-        }
-      });
+        });
+
+        const directionsButton = item.querySelector('.get-directions');
+        addDirectionsButtonListener(directionsButton, cafe);
+      }
     });
+  });
+
+  // Get user's location and show nearby cafes
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const { latitude, longitude } = position.coords;
+      
+      // Add a custom marker for the user's location
+      const el = document.createElement('div');
+      el.className = 'maplibregl-user-location-dot';
+
+      userMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center'
+      })
+        .setLngLat([longitude, latitude])
+        .addTo(map);
+
+      fitMapToMarkers();
+    }, error => {
+      console.error('Error getting user location:', error);
+      fitMapToMarkers();
+    });
+  } else {
+    fitMapToMarkers();
+  }
+
+  document.getElementById('clear-route').addEventListener('click', () => {
+    if (map.getSource('route')) {
+      map.removeLayer('route');
+      map.removeSource('route');
+    }
+    fitMapToMarkers();
   });
 </script>
 
