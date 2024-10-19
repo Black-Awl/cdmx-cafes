@@ -23,7 +23,6 @@ try {
 <Layout title={t('nav.home')}>
   <h1 class="text-4xl font-bold mb-4">{t('site.title')}</h1>
   <div id="map" class="w-full h-[600px]"></div>
-  
   <!-- Display fetched cafes -->
   <ul>
     {cafes.length > 0 ? (
@@ -34,6 +33,32 @@ try {
       <li>No cafes available</li>
     )}
   </ul>
+  <a href="https://airtable.com/appSmf7rrgif6G7hf/pagwYKO3gSxcHtFe9/form" target="_blank" rel="noopener noreferrer" class="btn btn-primary mt-4">+ Add Cafe</a>
+
+  <style>
+    .maplibregl-user-location-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background-color: #4285F4;
+      box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
+      animation: pulse 3s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+      }
+    }
+  </style>
+
+  <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafesData)}></script>
 </Layout>
 
 <script>
@@ -98,28 +123,3 @@ try {
     }
   });
 </script>
-
-<style>
-  .maplibregl-user-location-dot {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background-color: #4285F4;
-    box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
-    animation: pulse 3s infinite;
-  }
-
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
-    }
-  }
-</style>
-
-<script id="cafes-data" type="application/json" set:html={JSON.stringify(cafesData)}></script>

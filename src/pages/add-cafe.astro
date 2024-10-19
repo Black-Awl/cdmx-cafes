@@ -1,0 +1,30 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+---
+
+<Layout title={t('add.cafe')}>
+  <h1 class="text-4xl font-bold mb-4">{t('add.cafe')}</h1>
+  <div class="w-full max-w-3xl mx-auto">
+    <iframe
+      class="airtable-embed w-full h-[800px]"
+      src="https://airtable.com/embed/appSmf7rrgif6G7hf/pagwYKO3gSxcHtFe9/form"
+      frameborder="0"
+      onmousewheel=""
+      style="background: transparent; border: 1px solid #ccc;"
+    ></iframe>
+  </div>
+</Layout>
+
+<script>
+  window.addEventListener('message', (event) => {
+    if (event.data === 'airtable-form-submit') {
+      alert('Cafe added successfully!');
+      window.location.href = '/';
+    }
+  }, false);
+</script>
+
