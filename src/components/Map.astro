@@ -1,0 +1,321 @@
+---
+// src/components/Map.astro
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+interface Cafe {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  type?: string;
+  description?: string;
+}
+
+interface Props {
+  cafes: Cafe[];
+}
+
+const { cafes } = Astro.props;
+---
+
+<div id="map" class="w-full h-[600px]"></div>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+
+  const cafes = JSON.parse(document.getElementById('cafes-data').textContent);
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        'raster-tiles': {
+          type: 'raster',
+          tiles: [`https://api.maptiler.com/maps/toner/{z}/{x}/{y}.png?key=${import.meta.env.PUBLIC_MAPTILER_API_KEY}`],
+          tileSize: 256,
+        }
+      },
+      layers: [
+        {
+          id: 'background',
+          type: 'background',
+          paint: {
+            'background-color': '#2d1b0e' // Dark coffee color
+          }
+        },
+        {
+          id: 'raster-tiles',
+          type: 'raster',
+          source: 'raster-tiles',
+          paint: {
+            'raster-opacity': 0.7,
+            'raster-contrast': 0.2,
+            'raster-brightness-min': 0,
+            'raster-brightness-max': 0.8,
+            'raster-saturation': -0.9,
+            'raster-hue-rotate': 180
+          }
+        }
+      ]
+    },
+    center: [-99.133208, 19.432608], // Mexico City coordinates
+    zoom: 12
+  });
+
+  const markers = {};
+  let userMarker = null;
+
+  function closeAllPopupsExcept(exceptMarkerId) {
+    const cafeInfo = document.getElementById('cafe-info');
+    if (cafeInfo) {
+      cafeInfo.style.display = 'none';
+    }
+  }
+
+  function addMarker(cafe) {
+    const markerElement = document.createElement('div');
+    markerElement.className = 'custom-marker';
+    markerElement.style.width = '20px';
+    markerElement.style.height = '20px';
+    markerElement.style.borderRadius = '50%';
+    markerElement.style.cursor = 'pointer';
+
+    const marker = new maplibregl.Marker({
+      element: markerElement,
+      color: '#dbac6b', // Lighter coffee color for better visibility
+      scale: 1,
+    })
+      .setLngLat([cafe.longitude, cafe.latitude])
+      .addTo(map);
+
+    markerElement.addEventListener('click', () => {
+      closeAllPopupsExcept(cafe.id);
+      flyToStore(cafe);
+      showCafeInfo(cafe);
+    });
+
+    markers[cafe.id] = marker;
+  }
+
+  function flyToStore(cafe) {
+    map.flyTo({
+      center: [cafe.longitude, cafe.latitude],
+      zoom: 15,
+      speed: 0.5,
+      curve: 1,
+      easing(t) {
+        return t;
+      }
+    });
+  }
+
+  function fitMapToMarkers() {
+    const bounds = new maplibregl.LngLatBounds();
+    Object.values(markers).forEach(marker => bounds.extend(marker.getLngLat()));
+    if (userMarker) {
+      bounds.extend(userMarker.getLngLat());
+    }
+    map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+  }
+
+  async function fetchAndDisplayRoute(start, end) {
+    const apiKey = import.meta.env.PUBLIC_OPENROUTE_API_KEY;
+    const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${apiKey}&start=${start.join(',')}&end=${end.join(',')}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      const coordinates = data.features[0].geometry.coordinates;
+      const duration = Math.round(data.features[0].properties.summary.duration / 60); // Convert to minutes
+
+      if (map.getSource('route')) {
+        map.removeLayer('route');
+        map.removeSource('route');
+      }
+
+      map.addSource('route', {
+        'type': 'geojson',
+        'data': {
+          'type': 'Feature',
+          'properties': {},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': coordinates
+          }
+        }
+      });
+
+      map.addLayer({
+        'id': 'route',
+        'type': 'line',
+        'source': 'route',
+        'layout': {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        'paint': {
+          'line-color': '#dbac6b', // Lighter coffee color for better visibility
+          'line-width': 6
+        }
+      });
+
+      const bounds = coordinates.reduce((bounds, coord) => {
+        return bounds.extend(coord);
+      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+      map.fitBounds(bounds, { padding: 50 });
+
+      // Display the time estimate
+      const timeEstimateElement = document.createElement('div');
+      timeEstimateElement.id = 'time-estimate';
+      timeEstimateElement.innerHTML = `Estimated walking time: ${duration} minutes`;
+      timeEstimateElement.style.position = 'absolute';
+      timeEstimateElement.style.bottom = '10px';
+      timeEstimateElement.style.left = '10px';
+      timeEstimateElement.style.backgroundColor = '#2d1b0e'; // DaisyUI coffee theme background color
+      timeEstimateElement.style.color = '#dbac6b'; // DaisyUI coffee theme primary color
+      timeEstimateElement.style.padding = '5px';
+      timeEstimateElement.style.borderRadius = '3px';
+      document.getElementById('map').appendChild(timeEstimateElement);
+
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      alert('Unable to fetch walking directions. Please try again later.');
+    }
+  }
+
+  function clearTimeEstimate() {
+    const timeEstimateElement = document.getElementById('time-estimate');
+    if (timeEstimateElement) {
+      timeEstimateElement.remove();
+    }
+  }
+
+  function showCafeInfo(cafe) {
+    const cafeInfoElement = document.getElementById('cafe-info');
+    if (!cafeInfoElement) {
+      const newCafeInfoElement = document.createElement('div');
+      newCafeInfoElement.id = 'cafe-info';
+      newCafeInfoElement.className = 'custom-popup';
+      document.getElementById('map').appendChild(newCafeInfoElement);
+    }
+
+    const cafeInfo = document.getElementById('cafe-info');
+    cafeInfo.innerHTML = `
+      <div class="popup-content">
+        <h3 class="font-bold text-primary text-lg">${cafe.name}</h3>
+        <p class="text-sm text-base-content">${cafe.address}</p>
+        <p class="text-sm text-base-content mt-2"><strong>Type:</strong> ${cafe.type || 'N/A'}</p>
+        <p class="text-sm text-base-content"><strong>Description:</strong> ${cafe.description || 'No description available.'}</p>
+      </div>
+      <button class="popup-close" aria-label="Close popup">×</button>
+    `;
+
+    const closeButton = cafeInfo.querySelector('.popup-close');
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        cafeInfo.style.display = 'none';
+      });
+    }
+
+    cafeInfo.style.display = 'block';
+  }
+
+  map.on('load', () => {
+    map.setLight({
+      anchor: 'viewport',
+      color: '#ffffff',
+      intensity: 0.1
+    });
+
+    cafes.forEach(cafe => {
+      if (cafe.latitude && cafe.longitude) {
+        addMarker(cafe);
+      }
+    });
+
+    fitMapToMarkers();
+  });
+
+  // Get user's location and show nearby cafes
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const { latitude, longitude } = position.coords;
+      
+      // Add a custom marker for the user's location
+      const el = document.createElement('div');
+      el.className = 'maplibregl-user-location-dot';
+
+      userMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center'
+      })
+        .setLngLat([longitude, latitude])
+        .addTo(map);
+
+      fitMapToMarkers();
+    }, error => {
+      console.error('Error getting user location:', error);
+      fitMapToMarkers();
+    });
+  } else {
+    fitMapToMarkers();
+  }
+
+  // Expose necessary functions to the global scope for external access
+  window.mapFunctions = {
+    flyToStore,
+    showCafeInfo,
+    fetchAndDisplayRoute,
+    clearRoute: () => {
+      if (map.getSource('route')) {
+        map.removeLayer('route');
+        map.removeSource('route');
+      }
+      clearTimeEstimate();
+      fitMapToMarkers();
+    },
+    addMarker,
+    fitMapToMarkers,
+    closeAllPopupsExcept
+  };
+</script>
+
+<script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>
+
+<style>
+  .custom-marker {
+    background-color: #dbac6b;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .maplibregl-user-location-dot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #4285F4;
+    box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
+  }
+  .custom-popup {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    display: none;
+  }
+  .popup-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+    font-size: 18px;
+  }
+</style>

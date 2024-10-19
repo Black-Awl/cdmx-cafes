@@ -147,5 +147,3 @@ src/pages/es/index.astro
 src/pages/cafes.astro
 src/pages/es/cafes.astro
 // ... and so on for each page and language
-
-
