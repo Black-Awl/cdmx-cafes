@@ -23,15 +23,16 @@ try {
 ---
 
 <Layout title={t('nav.home')}>
-  <h1 class="text-4xl font-bold mb-4">{t('site.title')}</h1>
+  <h1 class="text-4xl font-bold mb-4 text-primary">{t('site.title')}</h1>
   <div class="flex">
     <div id="sidebar" class="w-1/4 pr-4 overflow-y-auto max-h-[600px]">
       <ul id="cafe-list">
         {cafes.map((cafe) => (
-          <li class="mb-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" data-id={cafe.id}>
-            <h3 class="font-bold">{cafe.name}</h3>
-            <p class="text-sm">{cafe.address}</p>
-            <button class="get-directions mt-2" data-cafe-id={cafe.id}>Get Walking Directions</button>
+          <li class="mb-2 p-2 bg-base-200 rounded cursor-pointer hover:bg-base-300" data-id={cafe.id}>
+            <h3 class="font-bold text-primary">{cafe.name}</h3>
+            <p class="text-sm text-base-content">{cafe.address}</p>
+            <button class="get-directions mt-2 btn btn-primary btn-sm">Get Walking Directions</button>
+            <button class="open-google-maps mt-2 ml-2 btn btn-secondary btn-sm">Open in Google Maps</button>
           </li>
         ))}
       </ul>
@@ -133,6 +134,25 @@ try {
     });
   }
 
+  function addOpenGoogleMapsButtonListener(button, cafe) {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const { latitude, longitude } = position.coords;
+          const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${cafe.latitude},${cafe.longitude}&travelmode=walking`;
+          window.open(url, '_blank');
+        }, error => {
+          console.error('Error getting user location:', error);
+          alert('Unable to get your location. Please enable location services and try again.');
+        });
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+    });
+  }
+
   async function fetchAndDisplayRoute(start, end) {
     const apiKey = import.meta.env.PUBLIC_OPENROUTE_API_KEY;
     const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${apiKey}&start=${start.join(',')}&end=${end.join(',')}`;
@@ -141,6 +161,7 @@ try {
       const response = await fetch(url);
       const data = await response.json();
       const coordinates = data.features[0].geometry.coordinates;
+      const duration = Math.round(data.features[0].properties.summary.duration / 60); // Convert to minutes
 
       if (map.getSource('route')) {
         map.removeLayer('route');
@@ -168,8 +189,8 @@ try {
           'line-cap': 'round'
         },
         'paint': {
-          'line-color': '#888',
-          'line-width': 8
+          'line-color': '#FFA500', // Golden yellow color
+          'line-width': 6
         }
       });
 
@@ -178,6 +199,19 @@ try {
       }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
 
       map.fitBounds(bounds, { padding: 50 });
+
+      // Display the time estimate
+      const timeEstimateElement = document.createElement('div');
+      timeEstimateElement.id = 'time-estimate';
+      timeEstimateElement.innerHTML = `Estimated walking time: ${duration} minutes`;
+      timeEstimateElement.style.position = 'absolute';
+      timeEstimateElement.style.bottom = '10px';
+      timeEstimateElement.style.left = '10px';
+      timeEstimateElement.style.backgroundColor = 'white';
+      timeEstimateElement.style.padding = '5px';
+      timeEstimateElement.style.borderRadius = '3px';
+      document.getElementById('map').appendChild(timeEstimateElement);
+
     } catch (error) {
       console.error('Error fetching route:', error);
       alert('Unable to fetch walking directions. Please try again later.');
@@ -206,6 +240,9 @@ try {
 
         const directionsButton = item.querySelector('.get-directions');
         addDirectionsButtonListener(directionsButton, cafe);
+
+        const openGoogleMapsButton = item.querySelector('.open-google-maps');
+        addOpenGoogleMapsButtonListener(openGoogleMapsButton, cafe);
       }
     });
   });
@@ -235,11 +272,19 @@ try {
     fitMapToMarkers();
   }
 
+  function clearTimeEstimate() {
+    const timeEstimateElement = document.getElementById('time-estimate');
+    if (timeEstimateElement) {
+      timeEstimateElement.remove();
+    }
+  }
+
   document.getElementById('clear-route').addEventListener('click', () => {
     if (map.getSource('route')) {
       map.removeLayer('route');
       map.removeSource('route');
     }
+    clearTimeEstimate();
     fitMapToMarkers();
   });
 </script>

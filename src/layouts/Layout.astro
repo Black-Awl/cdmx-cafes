@@ -68,38 +68,32 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
     width: 15px;
     height: 15px;
     border-radius: 50%;
-    background-color: #4285F4;
-    box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
+    background-color: hsl(var(--p));
+    box-shadow: 0 0 0 4px hsla(var(--p) / 0.4);
     animation: pulse 3s infinite;
   }
 
   @keyframes pulse {
     0% {
-      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
+      box-shadow: 0 0 0 0 hsla(var(--p) / 0.4);
     }
     70% {
-      box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+      box-shadow: 0 0 0 10px hsla(var(--p) / 0);
     }
     100% {
-      box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+      box-shadow: 0 0 0 0 hsla(var(--p) / 0);
     }
+  }
+
+  .get-directions, .open-google-maps {
+    @apply btn btn-sm;
   }
 
   .get-directions {
-    background-color: #4CAF50;
-    border: none;
-    color: white;
-    padding: 5px 10px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 12px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 4px;
+    @apply btn-primary;
   }
 
-  .get-directions:hover {
-    background-color: #45a049;
+  .open-google-maps {
+    @apply btn-secondary;
   }
 </style>
