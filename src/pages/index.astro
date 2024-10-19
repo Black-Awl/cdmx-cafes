@@ -1,18 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
-import cafes from '../data/cafes.json';
+import cafesData from '../data/cafes.json';
 import { fetchCafes } from '../api/airtable';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-let airtableCafes = [];
+let cafes = [];
 try {
-  airtableCafes = await fetchCafes();
-  console.log('Fetched cafes:', airtableCafes);
+  cafes = await fetchCafes();
+  if (cafes.length === 0) {
+    console.warn('No cafes fetched from Airtable. Using local data.');
+    cafes = cafesData;
+  }
 } catch (error) {
   console.error('Error fetching cafes from Airtable:', error);
+  cafes = cafesData;
 }
 ---
 
@@ -22,9 +26,13 @@ try {
   
   <!-- Display fetched cafes -->
   <ul>
-    {airtableCafes.map((cafe) => (
-      <li>{cafe.name} - {cafe.address}</li>
-    ))}
+    {cafes.length > 0 ? (
+      cafes.map((cafe) => (
+        <li>{cafe.name} - {cafe.address}</li>
+      ))
+    ) : (
+      <li>No cafes available</li>
+    )}
   </ul>
 </Layout>
 
@@ -32,42 +40,44 @@ try {
   import maplibregl from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
 
+  const cafesData = JSON.parse(document.getElementById('cafes-data').textContent);
+
   const map = new maplibregl.Map({
     container: 'map',
-    style: `https://api.maptiler.com/maps/toner/style.json?key=${import.meta.env.MAPTILER_API_KEY}`,
+    style: `https://api.maptiler.com/maps/toner/style.json?key=${import.meta.env.PUBLIC_MAPTILER_API_KEY}`,
     center: [-99.133208, 19.432608], // Mexico City coordinates
     zoom: 12
   });
 
-  // Add markers for cafes
-  fetch('/src/data/cafes.json')
-    .then(response => response.json())
-    .then(cafes => {
-      cafes.forEach(cafe => {
+  map.on('load', () => {
+    // Add markers for cafes
+    cafesData.forEach(cafe => {
+      if (cafe.latitude && cafe.longitude) {
         new maplibregl.Marker({ color: '#FFA500' }) // Cheese orange color
           .setLngLat([cafe.longitude, cafe.latitude])
           .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
           .addTo(map);
+      }
+    });
+
+    // Get user's location and show nearby cafes
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const { latitude, longitude } = position.coords;
+        map.flyTo({ center: [longitude, latitude], zoom: 14 });
+        
+        // Add a custom marker for the user's location
+        const el = document.createElement('div');
+        el.className = 'maplibregl-user-location-dot';
+        
+        new maplibregl.Marker(el)
+          .setLngLat([longitude, latitude])
+          .addTo(map);
+
+        // TODO: Implement logic to show 3-5 nearby cafes
       });
-    });
-
-  // Get user's location and show nearby cafes
-  if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(position => {
-      const { latitude, longitude } = position.coords;
-      map.flyTo({ center: [longitude, latitude], zoom: 14 });
-      
-      // Add a custom marker for the user's location
-      const el = document.createElement('div');
-      el.className = 'maplibregl-user-location-dot';
-      
-      new maplibregl.Marker(el)
-        .setLngLat([longitude, latitude])
-        .addTo(map);
-
-      // TODO: Implement logic to show 3-5 nearby cafes
-    });
-  }
+    }
+  });
 </script>
 
 <style>
@@ -92,3 +102,5 @@ try {
     }
   }
 </style>
+
+<script id="cafes-data" type="application/json" set:html={JSON.stringify(cafesData)}></script>

@@ -1,44 +1,37 @@
 import Airtable from 'airtable';
 
-const apiKey = import.meta.env.AIRTABLE_API_KEY;
-const baseId = import.meta.env.AIRTABLE_BASE_ID;
+const token = process.env.AIRTABLE_TOKEN;
+const baseId = process.env.AIRTABLE_BASE_ID;
+const tableId = process.env.AIRTABLE_TABLE_ID;
 
-if (!apiKey || !baseId) {
-  console.error('Airtable API key or Base ID is missing');
+if (!token || !baseId || !tableId) {
+  console.error('Airtable token, Base ID, or Table ID is missing');
 }
 
-const base = new Airtable({ apiKey }).base(baseId);
+const base = new Airtable({ apiKey: token }).base(baseId);
 
 export async function fetchCafes() {
   console.log('Fetching cafes...');
   console.log('Base ID:', baseId);
-  console.log('API Key (first 5 chars):', apiKey.substring(0, 5));
+  console.log('Table ID:', tableId);
+  console.log('API Key (first 5 chars):', token.substring(0, 5));
 
-  return new Promise((resolve, reject) => {
-    const cafes = [];
-    base('Cafes').select({
-      // maxRecords: 3,
-      view: "Grid view"
-    }).eachPage(function page(records, fetchNextPage) {
-      records.forEach(function(record) {
-        cafes.push({
-          id: record.id,
-          name: record.get('Name'),
-          address: record.get('Address'),
-          latitude: record.get('Latitude'),
-          longitude: record.get('Longitude'),
-        });
-      });
-
-      fetchNextPage();
-    }, function done(err) {
-      if (err) {
-        console.error('Error fetching cafes:', err);
-        reject(err);
-      } else {
-        console.log(`Successfully fetched ${cafes.length} cafes`);
-        resolve(cafes);
-      }
-    });
-  });
+  try {
+    const records = await base(tableId).select().all();
+    const cafes = records.map(record => ({
+      id: record.id,
+      name: record.get('Name'),
+      address: record.get('Address'),
+      latitude: record.get('Latitude'),
+      longitude: record.get('Longitude'),
+    }));
+    console.log(`Successfully fetched ${cafes.length} cafes`);
+    return cafes;
+  } catch (error) {
+    console.error('Error fetching cafes:', error);
+    if (error.statusCode === 403) {
+      console.error('Authorization error. Check your API key and permissions.');
+    }
+    throw error;
+  }
 }

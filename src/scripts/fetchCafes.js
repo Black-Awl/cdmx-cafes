@@ -5,12 +5,13 @@ import path from 'path';
 
 dotenv.config();
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+const base = new Airtable({ apiKey: process.env.AIRTABLE_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
+const tableId = process.env.AIRTABLE_TABLE_ID;
 
 async function fetchCafes() {
   const cafes = [];
   try {
-    await base('Cafes').select().eachPage((records, fetchNextPage) => {
+    await base(tableId).select().eachPage((records, fetchNextPage) => {
       records.forEach((record) => {
         cafes.push({
           id: record.id,
@@ -39,14 +40,21 @@ async function fetchCafes() {
 async function main() {
   try {
     const cafes = await fetchCafes();
+    const jsonContent = JSON.stringify(cafes.length > 0 ? cafes : [], null, 2);
     await fs.writeFile(
       path.join(process.cwd(), 'src', 'data', 'cafes.json'),
-      JSON.stringify(cafes, null, 2)
+      jsonContent
     );
     console.log(`Cached ${cafes.length} cafes`);
+    console.log('JSON content:', jsonContent);
   } catch (error) {
     console.error('Failed to fetch and cache cafes:', error);
-    process.exit(1);  // Exit with an error code to stop the build process
+    // Create an empty array if fetching fails
+    await fs.writeFile(
+      path.join(process.cwd(), 'src', 'data', 'cafes.json'),
+      '[]'
+    );
+    console.log('Created an empty cafes.json file');
   }
 }
 

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "rec1ciGTxOIDlB7Ap",
+    "name": "Intuición",
+    "address": "Mercado San Juan, Calle Ernesto Pugibet 21, Local 19, Colonia Centro, Ciudad de México",
+    "latitude": 19.4299492,
+    "longitude": -99.1446969
+  },
+  {
+    "id": "recBfDrfLvUhu1X0h",
+    "name": "Feral",
+    "address": "Av Independencia 95-Local B, Colonia Centro, Centro, Cuauhtémoc, 06000 Ciudad de México, CDMX, Mexico",
+    "latitude": 19.4371514,
+    "longitude": -99.1506362
+  },
+  {
+    "id": "reciSK1wlR1UgVCaD",
+    "name": "Oddity",
+    "address": "C. Guillermo Prieto 59, San Rafael, Cuauhtémoc, 06470 Ciudad de México, CDMX, Mexico",
+    "latitude": 19.4434525,
+    "longitude": -99.1695928
+  }
+]
