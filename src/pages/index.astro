@@ -100,11 +100,10 @@ try {
   let userMarker = null;
 
   function closeAllPopupsExcept(exceptMarkerId) {
-    Object.entries(markers).forEach(([id, marker]) => {
-      if (id !== exceptMarkerId) {
-        marker.getPopup().remove();
-      }
-    });
+    const cafeInfo = document.getElementById('cafe-info');
+    if (cafeInfo) {
+      cafeInfo.style.display = 'none';
+    }
   }
 
   function addMarker(cafe) {
@@ -121,18 +120,12 @@ try {
       scale: 1,
     })
       .setLngLat([cafe.longitude, cafe.latitude])
-      .setPopup(new maplibregl.Popup({
-        className: 'custom-popup'
-      }).setHTML(`
-        <h3 class="font-bold text-primary">${cafe.name}</h3>
-        <p class="text-sm text-base-content">${cafe.address}</p>
-      `))
       .addTo(map);
 
     markerElement.addEventListener('click', () => {
       closeAllPopupsExcept(cafe.id);
       flyToStore(cafe);
-      marker.togglePopup();
+      showCafeInfo(cafe);
     });
 
     markers[cafe.id] = marker;
@@ -331,6 +324,34 @@ try {
     clearTimeEstimate();
     fitMapToMarkers();
   });
+
+  function showCafeInfo(cafe) {
+    const cafeInfoElement = document.getElementById('cafe-info');
+    if (!cafeInfoElement) {
+      const newCafeInfoElement = document.createElement('div');
+      newCafeInfoElement.id = 'cafe-info';
+      newCafeInfoElement.className = 'custom-popup';
+      document.getElementById('map').appendChild(newCafeInfoElement);
+    }
+
+    const cafeInfo = document.getElementById('cafe-info');
+    cafeInfo.innerHTML = `
+      <div class="popup-content">
+        <h3 class="font-bold text-primary text-lg">${cafe.name}</h3>
+        <p class="text-sm text-base-content">${cafe.address}</p>
+      </div>
+      <button class="popup-close" aria-label="Close popup">×</button>
+    `;
+
+    const closeButton = cafeInfo.querySelector('.popup-close');
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        cafeInfo.style.display = 'none';
+      });
+    }
+
+    cafeInfo.style.display = 'block';
+  }
 </script>
 
 <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>

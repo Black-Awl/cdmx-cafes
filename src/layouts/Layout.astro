@@ -119,4 +119,33 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
   .custom-popup .maplibregl-popup-close-button {
     color: #dbac6b;
   }
+  #cafe-info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+    max-width: 300px;
+    background-color: #2d1b0e;
+    color: #dbac6b;
+    border-radius: 4px;
+    padding: 15px;
+    font-size: 14px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    display: none;
+  }
+  #cafe-info .popup-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    border: none;
+    background: none;
+    color: #dbac6b;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  #cafe-info .popup-close:hover {
+    color: #fff;
+  }
 </style>
