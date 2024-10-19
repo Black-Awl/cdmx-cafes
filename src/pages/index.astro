@@ -65,7 +65,7 @@ try {
           id: 'background',
           type: 'background',
           paint: {
-            'background-color': '#2d1b0e' // DaisyUI coffee theme background color
+            'background-color': '#2d1b0e' // Dark coffee color
           }
         },
         {
@@ -74,14 +74,26 @@ try {
           source: 'raster-tiles',
           paint: {
             'raster-opacity': 0.7,
-            'raster-contrast': 0.1,
-            'raster-brightness-min': 0.2
+            'raster-contrast': 0.2,
+            'raster-brightness-min': 0,
+            'raster-brightness-max': 0.8,
+            'raster-saturation': -0.9,
+            'raster-hue-rotate': 180
           }
         }
       ]
     },
     center: [-99.133208, 19.432608], // Mexico City coordinates
     zoom: 12
+  });
+
+  // Add light configuration
+  map.on('load', () => {
+    map.setLight({
+      anchor: 'viewport',
+      color: '#ffffff',
+      intensity: 0.1
+    });
   });
 
   const markers = {};
@@ -105,11 +117,13 @@ try {
 
     const marker = new maplibregl.Marker({
       element: markerElement,
-      color: '#ea580c', // DaisyUI coffee theme accent color
+      color: '#dbac6b', // Lighter coffee color for better visibility
       scale: 1,
     })
       .setLngLat([cafe.longitude, cafe.latitude])
-      .setPopup(new maplibregl.Popup().setHTML(`
+      .setPopup(new maplibregl.Popup({
+        className: 'custom-popup'
+      }).setHTML(`
         <h3 class="font-bold text-primary">${cafe.name}</h3>
         <p class="text-sm text-base-content">${cafe.address}</p>
       `))
@@ -218,7 +232,7 @@ try {
           'line-cap': 'round'
         },
         'paint': {
-          'line-color': '#dbac6b', // DaisyUI coffee theme primary color
+          'line-color': '#dbac6b', // Lighter coffee color for better visibility
           'line-width': 6
         }
       });
