@@ -3,6 +3,8 @@ import Layout from '../layouts/Layout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import cafesData from '../data/cafes.json';
 import { fetchCafes } from '../api/airtable';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -22,43 +24,20 @@ try {
 
 <Layout title={t('nav.home')}>
   <h1 class="text-4xl font-bold mb-4">{t('site.title')}</h1>
-  <div id="map" class="w-full h-[600px]"></div>
-  <!-- Display fetched cafes -->
-  <ul>
-    {cafes.length > 0 ? (
-      cafes.map((cafe) => (
-        <li>{cafe.name} - {cafe.address}</li>
-      ))
-    ) : (
-      <li>No cafes available</li>
-    )}
-  </ul>
+  <div class="flex">
+    <div id="sidebar" class="w-1/4 pr-4 overflow-y-auto max-h-[600px]">
+      <ul id="cafe-list">
+        {cafes.map((cafe) => (
+          <li class="mb-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" data-id={cafe.id}>
+            <h3 class="font-bold">{cafe.name}</h3>
+            <p class="text-sm">{cafe.address}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <div id="map" class="w-3/4 h-[600px]"></div>
+  </div>
   <a href="https://airtable.com/appSmf7rrgif6G7hf/pagwYKO3gSxcHtFe9/form" target="_blank" rel="noopener noreferrer" class="btn btn-primary mt-4">+ Add Cafe</a>
-
-  <style>
-    .maplibregl-user-location-dot {
-      width: 15px;
-      height: 15px;
-      border-radius: 50%;
-      background-color: #4285F4;
-      box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.4);
-      animation: pulse 3s infinite;
-    }
-
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
-      }
-    }
-  </style>
-
-  <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafesData)}></script>
 </Layout>
 
 <script>
@@ -74,52 +53,71 @@ try {
     zoom: 12
   });
 
-  const markers = [];
+  const markers = {};
+
+  function addMarker(cafe) {
+    const marker = new maplibregl.Marker({ color: '#FFA500' })
+      .setLngLat([cafe.longitude, cafe.latitude])
+      .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
+      .addTo(map);
+    markers[cafe.id] = marker;
+  }
 
   function fitMapToMarkers() {
     const bounds = new maplibregl.LngLatBounds();
-    markers.forEach(marker => bounds.extend(marker.getLngLat()));
+    Object.values(markers).forEach(marker => bounds.extend(marker.getLngLat()));
     map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   }
 
   map.on('load', () => {
-    // Add markers for cafes
     cafesData.forEach(cafe => {
       if (cafe.latitude && cafe.longitude) {
-        const marker = new maplibregl.Marker({ color: '#FFA500' }) // Cheese orange color
-          .setLngLat([cafe.longitude, cafe.latitude])
-          .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
-          .addTo(map);
-        markers.push(marker);
+        addMarker(cafe);
       }
     });
 
-    // Get user's location and show nearby cafes
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(position => {
-        const { latitude, longitude } = position.coords;
-        
-        // Add a custom marker for the user's location
-        const el = document.createElement('div');
-        el.className = 'maplibregl-user-location-dot';
+    fitMapToMarkers();
 
-        const userMarker = new maplibregl.Marker({
-          element: el,
-          anchor: 'center'
-        })
-          .setLngLat([longitude, latitude])
-          .addTo(map);
-        
-        markers.push(userMarker);
-
-        // Fit map to all markers including user location
-        fitMapToMarkers();
-      }, error => {
-        console.error('Error getting user location:', error);
-        fitMapToMarkers(); // Fit to cafe markers if user location is not available
+    // Add click event listeners to cafe list items
+    document.querySelectorAll('#cafe-list li').forEach(item => {
+      item.addEventListener('click', () => {
+        const cafeId = item.getAttribute('data-id');
+        const cafe = cafesData.find(c => c.id === cafeId);
+        if (cafe) {
+          map.flyTo({
+            center: [cafe.longitude, cafe.latitude],
+            zoom: 15
+          });
+          markers[cafeId].togglePopup();
+        }
       });
-    } else {
-      fitMapToMarkers(); // Fit to cafe markers if geolocation is not supported
-    }
+    });
   });
+
+  // Get user's location and show nearby cafes
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const { latitude, longitude } = position.coords;
+      
+      // Add a custom marker for the user's location
+      const el = document.createElement('div');
+      el.className = 'maplibregl-user-location-dot';
+
+      new maplibregl.Marker({
+        element: el,
+        anchor: 'center'
+      })
+        .setLngLat([longitude, latitude])
+        .addTo(map);
+
+      map.flyTo({
+        center: [longitude, latitude],
+        zoom: 13
+      });
+    }, error => {
+      console.error('Error getting user location:', error);
+    });
+  }
 </script>
+
+<script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>
