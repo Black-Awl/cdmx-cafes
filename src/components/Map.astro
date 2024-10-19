@@ -64,7 +64,11 @@ const { cafes } = Astro.props;
     center: [-99.133208, 19.432608], // Mexico City coordinates
     zoom: 12,
     pitch: 45, // Set the default pitch
-    bearing: -17.6 // Set the default bearing
+    bearing: -17.6, // Set the default bearing
+    maxBounds: [
+      [-99.364, 19.049], // Southwest coordinates
+      [-98.940, 19.592]  // Northeast coordinates
+    ]
   });
 
   const markers = {};
