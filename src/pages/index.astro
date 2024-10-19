@@ -272,7 +272,7 @@ try {
         item.addEventListener('click', () => {
           closeAllPopupsExcept(cafeId);
           flyToStore(cafe);
-          markers[cafeId].togglePopup();
+          showCafeInfo(cafe);
         });
 
         const directionsButton = item.querySelector('.get-directions');
@@ -339,6 +339,8 @@ try {
       <div class="popup-content">
         <h3 class="font-bold text-primary text-lg">${cafe.name}</h3>
         <p class="text-sm text-base-content">${cafe.address}</p>
+        <p class="text-sm text-base-content mt-2"><strong>Type:</strong> ${cafe.type || 'N/A'}</p>
+        <p class="text-sm text-base-content"><strong>Description:</strong> ${cafe.description || 'No description available.'}</p>
       </div>
       <button class="popup-close" aria-label="Close popup">×</button>
     `;
