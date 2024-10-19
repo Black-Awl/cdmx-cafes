@@ -130,6 +130,18 @@ const { cafes } = Astro.props;
     map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   }
 
+  function applyPadding() {
+    map.easeTo({
+      padding: {
+        top: 20,
+        bottom: 20,
+        left: 200, // Adjust this value based on your sidebar width
+        right: 20
+      },
+      duration: 2000 // Duration of the transition in milliseconds
+    });
+  }
+
   async function fetchAndDisplayRoute(start, end, cafeId) {
     const cacheKey = `${start.join(',')}-${cafeId}`;
     if (walkingTimeEstimates[cacheKey]) {
@@ -257,6 +269,7 @@ const { cafes } = Astro.props;
     });
 
     fitMapToMarkers();
+    applyPadding(); // Apply padding when the map is loaded
   });
 
   // Get user's location and show nearby cafes
@@ -307,6 +320,23 @@ const { cafes } = Astro.props;
     fitMapToMarkers,
     closeAllPopupsExcept
   };
+
+  function fitMapToUserAndDestination(userLocation, destination) {
+    const bounds = new maplibregl.LngLatBounds();
+    bounds.extend(userLocation);
+    bounds.extend(destination);
+    
+    // Adjust padding values to maintain similar spacing
+    map.fitBounds(bounds, {
+      padding: {
+        top: 100,    // Increase top padding for more vertical space
+        bottom: 100, // Increase bottom padding for more vertical space
+        left: 100,   // Adjust left padding for horizontal balance
+        right: 100   // Adjust right padding for horizontal balance
+      },
+      maxZoom: 15
+    });
+  }
 </script>
 
 <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>
@@ -344,3 +374,4 @@ const { cafes } = Astro.props;
     font-size: 18px;
   }
 </style>
+
