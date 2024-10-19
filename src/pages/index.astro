@@ -54,18 +54,36 @@ try {
   });
 
   const markers = {};
+  let userMarker = null;
+
+  function closeAllPopupsExcept(exceptMarkerId) {
+    Object.entries(markers).forEach(([id, marker]) => {
+      if (id !== exceptMarkerId) {
+        marker.getPopup().remove();
+      }
+    });
+  }
 
   function addMarker(cafe) {
     const marker = new maplibregl.Marker({ color: '#FFA500' })
       .setLngLat([cafe.longitude, cafe.latitude])
       .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
       .addTo(map);
+    
+    marker.getElement().addEventListener('click', () => {
+      closeAllPopupsExcept(cafe.id);
+      marker.togglePopup();
+    });
+
     markers[cafe.id] = marker;
   }
 
   function fitMapToMarkers() {
     const bounds = new maplibregl.LngLatBounds();
     Object.values(markers).forEach(marker => bounds.extend(marker.getLngLat()));
+    if (userMarker) {
+      bounds.extend(userMarker.getLngLat());
+    }
     map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   }
 
@@ -76,7 +94,30 @@ try {
       }
     });
 
-    fitMapToMarkers();
+    // Get user's location and show nearby cafes
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const { latitude, longitude } = position.coords;
+        
+        // Add a custom marker for the user's location
+        const el = document.createElement('div');
+        el.className = 'maplibregl-user-location-dot';
+
+        userMarker = new maplibregl.Marker({
+          element: el,
+          anchor: 'center'
+        })
+          .setLngLat([longitude, latitude])
+          .addTo(map);
+
+        fitMapToMarkers();
+      }, error => {
+        console.error('Error getting user location:', error);
+        fitMapToMarkers();
+      });
+    } else {
+      fitMapToMarkers();
+    }
 
     // Add click event listeners to cafe list items
     document.querySelectorAll('#cafe-list li').forEach(item => {
@@ -84,6 +125,7 @@ try {
         const cafeId = item.getAttribute('data-id');
         const cafe = cafesData.find(c => c.id === cafeId);
         if (cafe) {
+          closeAllPopupsExcept(cafeId);
           map.flyTo({
             center: [cafe.longitude, cafe.latitude],
             zoom: 15
@@ -93,31 +135,6 @@ try {
       });
     });
   });
-
-  // Get user's location and show nearby cafes
-  if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(position => {
-      const { latitude, longitude } = position.coords;
-      
-      // Add a custom marker for the user's location
-      const el = document.createElement('div');
-      el.className = 'maplibregl-user-location-dot';
-
-      new maplibregl.Marker({
-        element: el,
-        anchor: 'center'
-      })
-        .setLngLat([longitude, latitude])
-        .addTo(map);
-
-      map.flyTo({
-        center: [longitude, latitude],
-        zoom: 13
-      });
-    }, error => {
-      console.error('Error getting user location:', error);
-    });
-  }
 </script>
 
 <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>
