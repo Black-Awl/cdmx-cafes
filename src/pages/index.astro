@@ -1,10 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Map from '../components/Map.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import cafesData from '../data/cafes.json';
 import { fetchCafes } from '../api/airtable';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -23,7 +22,6 @@ try {
 ---
 
 <Layout title={t('nav.home')}>
-  <h1 class="text-4xl font-bold mb-4 text-primary">{t('site.title')}</h1>
   <div class="flex">
     <div id="sidebar" class="w-1/4 pr-4 overflow-y-auto max-h-[600px]">
       <ul id="cafe-list">
@@ -37,120 +35,14 @@ try {
         ))}
       </ul>
     </div>
-    <div id="map" class="w-3/4 h-[600px]"></div>
+    <Map cafes={cafes} />
   </div>
   <a href="https://airtable.com/appSmf7rrgif6G7hf/pagwYKO3gSxcHtFe9/form" target="_blank" rel="noopener noreferrer" class="btn btn-primary mt-4">+ Add Cafe</a>
   <button id="clear-route" class="btn btn-secondary mt-4 ml-4">Clear Route</button>
 </Layout>
 
 <script>
-  import maplibregl from 'maplibre-gl';
-  import 'maplibre-gl/dist/maplibre-gl.css';
-
   const cafesData = JSON.parse(document.getElementById('cafes-data').textContent);
-
-  const map = new maplibregl.Map({
-    container: 'map',
-    style: {
-      version: 8,
-      sources: {
-        'raster-tiles': {
-          type: 'raster',
-          tiles: [`https://api.maptiler.com/maps/toner/{z}/{x}/{y}.png?key=${import.meta.env.PUBLIC_MAPTILER_API_KEY}`],
-          tileSize: 256,
-        }
-      },
-      layers: [
-        {
-          id: 'background',
-          type: 'background',
-          paint: {
-            'background-color': '#2d1b0e' // Dark coffee color
-          }
-        },
-        {
-          id: 'raster-tiles',
-          type: 'raster',
-          source: 'raster-tiles',
-          paint: {
-            'raster-opacity': 0.7,
-            'raster-contrast': 0.2,
-            'raster-brightness-min': 0,
-            'raster-brightness-max': 0.8,
-            'raster-saturation': -0.9,
-            'raster-hue-rotate': 180
-          }
-        }
-      ]
-    },
-    center: [-99.133208, 19.432608], // Mexico City coordinates
-    zoom: 12
-  });
-
-  // Add light configuration
-  map.on('load', () => {
-    map.setLight({
-      anchor: 'viewport',
-      color: '#ffffff',
-      intensity: 0.1
-    });
-  });
-
-  const markers = {};
-  let userMarker = null;
-
-  function closeAllPopupsExcept(exceptMarkerId) {
-    const cafeInfo = document.getElementById('cafe-info');
-    if (cafeInfo) {
-      cafeInfo.style.display = 'none';
-    }
-  }
-
-  function addMarker(cafe) {
-    const markerElement = document.createElement('div');
-    markerElement.className = 'custom-marker';
-    markerElement.style.width = '20px';
-    markerElement.style.height = '20px';
-    markerElement.style.borderRadius = '50%';
-    markerElement.style.cursor = 'pointer';
-
-    const marker = new maplibregl.Marker({
-      element: markerElement,
-      color: '#dbac6b', // Lighter coffee color for better visibility
-      scale: 1,
-    })
-      .setLngLat([cafe.longitude, cafe.latitude])
-      .addTo(map);
-
-    markerElement.addEventListener('click', () => {
-      closeAllPopupsExcept(cafe.id);
-      flyToStore(cafe);
-      showCafeInfo(cafe);
-    });
-
-    markers[cafe.id] = marker;
-  }
-
-  function flyToStore(cafe) {
-    map.flyTo({
-      center: [cafe.longitude, cafe.latitude],
-      zoom: 15,
-      speed: 0.5,
-      curve: 1,
-      easing(t) {
-        return t;
-      }
-    });
-  }
-
-  function fitMapToMarkers() {
-    const bounds = new maplibregl.LngLatBounds();
-    Object.values(markers).forEach(marker => bounds.extend(marker.getLngLat()));
-    if (userMarker) {
-      bounds.extend(userMarker.getLngLat());
-    }
-    map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
-  }
 
   function addDirectionsButtonListener(button, cafe) {
     button.addEventListener('click', (e) => {
@@ -159,7 +51,7 @@ try {
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(position => {
           const { latitude, longitude } = position.coords;
-          fetchAndDisplayRoute([longitude, latitude], [cafe.longitude, cafe.latitude]);
+          window.mapFunctions.fetchAndDisplayRoute([longitude, latitude], [cafe.longitude, cafe.latitude]);
         }, error => {
           console.error('Error getting user location:', error);
           alert('Unable to get your location. Please enable location services and try again.');
@@ -189,90 +81,15 @@ try {
     });
   }
 
-  async function fetchAndDisplayRoute(start, end) {
-    const apiKey = import.meta.env.PUBLIC_OPENROUTE_API_KEY;
-    const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${apiKey}&start=${start.join(',')}&end=${end.join(',')}`;
-
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      const coordinates = data.features[0].geometry.coordinates;
-      const duration = Math.round(data.features[0].properties.summary.duration / 60); // Convert to minutes
-
-      if (map.getSource('route')) {
-        map.removeLayer('route');
-        map.removeSource('route');
-      }
-
-      map.addSource('route', {
-        'type': 'geojson',
-        'data': {
-          'type': 'Feature',
-          'properties': {},
-          'geometry': {
-            'type': 'LineString',
-            'coordinates': coordinates
-          }
-        }
-      });
-
-      map.addLayer({
-        'id': 'route',
-        'type': 'line',
-        'source': 'route',
-        'layout': {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        'paint': {
-          'line-color': '#dbac6b', // Lighter coffee color for better visibility
-          'line-width': 6
-        }
-      });
-
-      const bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-
-      map.fitBounds(bounds, { padding: 50 });
-
-      // Display the time estimate
-      const timeEstimateElement = document.createElement('div');
-      timeEstimateElement.id = 'time-estimate';
-      timeEstimateElement.innerHTML = `Estimated walking time: ${duration} minutes`;
-      timeEstimateElement.style.position = 'absolute';
-      timeEstimateElement.style.bottom = '10px';
-      timeEstimateElement.style.left = '10px';
-      timeEstimateElement.style.backgroundColor = '#2d1b0e'; // DaisyUI coffee theme background color
-      timeEstimateElement.style.color = '#dbac6b'; // DaisyUI coffee theme primary color
-      timeEstimateElement.style.padding = '5px';
-      timeEstimateElement.style.borderRadius = '3px';
-      document.getElementById('map').appendChild(timeEstimateElement);
-
-    } catch (error) {
-      console.error('Error fetching route:', error);
-      alert('Unable to fetch walking directions. Please try again later.');
-    }
-  }
-
-  map.on('load', () => {
-    cafesData.forEach(cafe => {
-      if (cafe.latitude && cafe.longitude) {
-        addMarker(cafe);
-      }
-    });
-
-    fitMapToMarkers();
-
-    // Add click event listeners to cafe list items and direction buttons
+  document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#cafe-list li').forEach(item => {
       const cafeId = item.getAttribute('data-id');
       const cafe = cafesData.find(c => c.id === cafeId);
       if (cafe) {
         item.addEventListener('click', () => {
-          closeAllPopupsExcept(cafeId);
-          flyToStore(cafe);
-          showCafeInfo(cafe);
+          window.mapFunctions.closeAllPopupsExcept(cafeId);
+          window.mapFunctions.flyToStore(cafe);
+          window.mapFunctions.showCafeInfo(cafe);
         });
 
         const directionsButton = item.querySelector('.get-directions');
@@ -282,78 +99,11 @@ try {
         addOpenGoogleMapsButtonListener(openGoogleMapsButton, cafe);
       }
     });
-  });
 
-  // Get user's location and show nearby cafes
-  if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(position => {
-      const { latitude, longitude } = position.coords;
-      
-      // Add a custom marker for the user's location
-      const el = document.createElement('div');
-      el.className = 'maplibregl-user-location-dot';
-
-      userMarker = new maplibregl.Marker({
-        element: el,
-        anchor: 'center'
-      })
-        .setLngLat([longitude, latitude])
-        .addTo(map);
-
-      fitMapToMarkers();
-    }, error => {
-      console.error('Error getting user location:', error);
-      fitMapToMarkers();
+    document.getElementById('clear-route').addEventListener('click', () => {
+      window.mapFunctions.clearRoute();
     });
-  } else {
-    fitMapToMarkers();
-  }
-
-  function clearTimeEstimate() {
-    const timeEstimateElement = document.getElementById('time-estimate');
-    if (timeEstimateElement) {
-      timeEstimateElement.remove();
-    }
-  }
-
-  document.getElementById('clear-route').addEventListener('click', () => {
-    if (map.getSource('route')) {
-      map.removeLayer('route');
-      map.removeSource('route');
-    }
-    clearTimeEstimate();
-    fitMapToMarkers();
   });
-
-  function showCafeInfo(cafe) {
-    const cafeInfoElement = document.getElementById('cafe-info');
-    if (!cafeInfoElement) {
-      const newCafeInfoElement = document.createElement('div');
-      newCafeInfoElement.id = 'cafe-info';
-      newCafeInfoElement.className = 'custom-popup';
-      document.getElementById('map').appendChild(newCafeInfoElement);
-    }
-
-    const cafeInfo = document.getElementById('cafe-info');
-    cafeInfo.innerHTML = `
-      <div class="popup-content">
-        <h3 class="font-bold text-primary text-lg">${cafe.name}</h3>
-        <p class="text-sm text-base-content">${cafe.address}</p>
-        <p class="text-sm text-base-content mt-2"><strong>Type:</strong> ${cafe.type || 'N/A'}</p>
-        <p class="text-sm text-base-content"><strong>Description:</strong> ${cafe.description || 'No description available.'}</p>
-      </div>
-      <button class="popup-close" aria-label="Close popup">×</button>
-    `;
-
-    const closeButton = cafeInfo.querySelector('.popup-close');
-    if (closeButton) {
-      closeButton.addEventListener('click', () => {
-        cafeInfo.style.display = 'none';
-      });
-    }
-
-    cafeInfo.style.display = 'block';
-  }
 </script>
 
 <script id="cafes-data" type="application/json" set:html={JSON.stringify(cafes)}></script>
