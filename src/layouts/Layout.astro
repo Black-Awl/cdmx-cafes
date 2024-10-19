@@ -52,6 +52,7 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
     
     <!-- Language alternates -->
     {alternateLinks && <Fragment set:html={alternateLinks} />}
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
   </head>
   <body class="flex flex-col min-h-screen">
     <Header />
@@ -64,6 +65,14 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
 </html>
 
 <style is:global>
+  :root {
+    font-family: 'Noto Sans', sans-serif;
+  }
+
+  body {
+    font-family: 'Noto Sans', sans-serif;
+  }
+
   .maplibregl-user-location-dot {
     width: 15px;
     height: 15px;
@@ -72,7 +81,6 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
     box-shadow: 0 0 0 4px hsla(var(--p) / 0.4);
     animation: pulse 3s infinite;
   }
-
   @keyframes pulse {
     0% {
       box-shadow: 0 0 0 0 hsla(var(--p) / 0.4);
@@ -84,36 +92,30 @@ const alternateLinks = getAlternateLinks(Astro.url.pathname);
       box-shadow: 0 0 0 0 hsla(var(--p) / 0);
     }
   }
-
   .get-directions, .open-google-maps {
     @apply btn btn-sm;
   }
-
   .get-directions {
     @apply btn-primary;
   }
-
   .open-google-maps {
     @apply btn-secondary;
   }
-
   .custom-marker {
     background-color: #ea580c;
     border: 2px solid #2d1b0e;
   }
-
   .custom-popup .maplibregl-popup-content {
     background-color: #2d1b0e;
     color: #dbac6b;
     border-radius: 4px;
     padding: 10px;
+    font-family: 'Noto Sans', sans-serif;
   }
-
   .custom-popup .maplibregl-popup-tip {
     border-top-color: #2d1b0e;
     border-bottom-color: #2d1b0e;
   }
-
   .custom-popup .maplibregl-popup-close-button {
     color: #dbac6b;
   }
