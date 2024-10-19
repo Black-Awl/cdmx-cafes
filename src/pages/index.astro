@@ -51,7 +51,35 @@ try {
 
   const map = new maplibregl.Map({
     container: 'map',
-    style: `https://api.maptiler.com/maps/toner/style.json?key=${import.meta.env.PUBLIC_MAPTILER_API_KEY}`,
+    style: {
+      version: 8,
+      sources: {
+        'raster-tiles': {
+          type: 'raster',
+          tiles: [`https://api.maptiler.com/maps/toner/{z}/{x}/{y}.png?key=${import.meta.env.PUBLIC_MAPTILER_API_KEY}`],
+          tileSize: 256,
+        }
+      },
+      layers: [
+        {
+          id: 'background',
+          type: 'background',
+          paint: {
+            'background-color': '#2d1b0e' // DaisyUI coffee theme background color
+          }
+        },
+        {
+          id: 'raster-tiles',
+          type: 'raster',
+          source: 'raster-tiles',
+          paint: {
+            'raster-opacity': 0.7,
+            'raster-contrast': 0.1,
+            'raster-brightness-min': 0.2
+          }
+        }
+      ]
+    },
     center: [-99.133208, 19.432608], // Mexico City coordinates
     zoom: 12
   });
@@ -68,25 +96,26 @@ try {
   }
 
   function addMarker(cafe) {
-    const el = document.createElement('div');
-    el.className = 'marker';
-    el.style.backgroundColor = '#FFA500';
-    el.style.width = '20px';
-    el.style.height = '20px';
-    el.style.borderRadius = '50%';
-    el.style.cursor = 'pointer';
+    const markerElement = document.createElement('div');
+    markerElement.className = 'custom-marker';
+    markerElement.style.width = '20px';
+    markerElement.style.height = '20px';
+    markerElement.style.borderRadius = '50%';
+    markerElement.style.cursor = 'pointer';
 
-    const popupContent = `
-      <h3>${cafe.name}</h3>
-      <p>${cafe.address}</p>
-    `;
-
-    const marker = new maplibregl.Marker(el)
+    const marker = new maplibregl.Marker({
+      element: markerElement,
+      color: '#ea580c', // DaisyUI coffee theme accent color
+      scale: 1,
+    })
       .setLngLat([cafe.longitude, cafe.latitude])
-      .setPopup(new maplibregl.Popup().setHTML(popupContent))
+      .setPopup(new maplibregl.Popup().setHTML(`
+        <h3 class="font-bold text-primary">${cafe.name}</h3>
+        <p class="text-sm text-base-content">${cafe.address}</p>
+      `))
       .addTo(map);
-    
-    el.addEventListener('click', () => {
+
+    markerElement.addEventListener('click', () => {
       closeAllPopupsExcept(cafe.id);
       flyToStore(cafe);
       marker.togglePopup();
@@ -189,7 +218,7 @@ try {
           'line-cap': 'round'
         },
         'paint': {
-          'line-color': '#FFA500', // Golden yellow color
+          'line-color': '#dbac6b', // DaisyUI coffee theme primary color
           'line-width': 6
         }
       });
@@ -207,7 +236,8 @@ try {
       timeEstimateElement.style.position = 'absolute';
       timeEstimateElement.style.bottom = '10px';
       timeEstimateElement.style.left = '10px';
-      timeEstimateElement.style.backgroundColor = 'white';
+      timeEstimateElement.style.backgroundColor = '#2d1b0e'; // DaisyUI coffee theme background color
+      timeEstimateElement.style.color = '#dbac6b'; // DaisyUI coffee theme primary color
       timeEstimateElement.style.padding = '5px';
       timeEstimateElement.style.borderRadius = '3px';
       document.getElementById('map').appendChild(timeEstimateElement);
