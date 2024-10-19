@@ -69,8 +69,11 @@ try {
         // Add a custom marker for the user's location
         const el = document.createElement('div');
         el.className = 'maplibregl-user-location-dot';
-        
-        new maplibregl.Marker(el)
+
+        new maplibregl.Marker({
+          element: el,
+          anchor: 'center'
+        })
           .setLngLat([longitude, latitude])
           .addTo(map);
 
