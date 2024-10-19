@@ -49,14 +49,23 @@ try {
     zoom: 12
   });
 
+  const markers = [];
+
+  function fitMapToMarkers() {
+    const bounds = new maplibregl.LngLatBounds();
+    markers.forEach(marker => bounds.extend(marker.getLngLat()));
+    map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+  }
+
   map.on('load', () => {
     // Add markers for cafes
     cafesData.forEach(cafe => {
       if (cafe.latitude && cafe.longitude) {
-        new maplibregl.Marker({ color: '#FFA500' }) // Cheese orange color
+        const marker = new maplibregl.Marker({ color: '#FFA500' }) // Cheese orange color
           .setLngLat([cafe.longitude, cafe.latitude])
           .setPopup(new maplibregl.Popup().setHTML(`<h3>${cafe.name}</h3><p>${cafe.address}</p>`))
           .addTo(map);
+        markers.push(marker);
       }
     });
 
@@ -64,21 +73,28 @@ try {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(position => {
         const { latitude, longitude } = position.coords;
-        map.flyTo({ center: [longitude, latitude], zoom: 14 });
         
         // Add a custom marker for the user's location
         const el = document.createElement('div');
         el.className = 'maplibregl-user-location-dot';
 
-        new maplibregl.Marker({
+        const userMarker = new maplibregl.Marker({
           element: el,
           anchor: 'center'
         })
           .setLngLat([longitude, latitude])
           .addTo(map);
+        
+        markers.push(userMarker);
 
-        // TODO: Implement logic to show 3-5 nearby cafes
+        // Fit map to all markers including user location
+        fitMapToMarkers();
+      }, error => {
+        console.error('Error getting user location:', error);
+        fitMapToMarkers(); // Fit to cafe markers if user location is not available
       });
+    } else {
+      fitMapToMarkers(); // Fit to cafe markers if geolocation is not supported
     }
   });
 </script>
