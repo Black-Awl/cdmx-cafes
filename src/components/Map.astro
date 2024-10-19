@@ -26,6 +26,8 @@ const { cafes } = Astro.props;
   import maplibregl from 'maplibre-gl';
 
   const cafes = JSON.parse(document.getElementById('cafes-data').textContent);
+  let currentCafeId = null;
+  let walkingTimeEstimates = {}; // Cache for walking time estimates
 
   const map = new maplibregl.Map({
     container: 'map',
@@ -73,6 +75,7 @@ const { cafes } = Astro.props;
 
   const markers = {};
   let userMarker = null;
+  let userLocation = null;
 
   function closeAllPopupsExcept(exceptMarkerId) {
     const cafeInfo = document.getElementById('cafe-info');
@@ -127,80 +130,89 @@ const { cafes } = Astro.props;
     map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
   }
 
-  async function fetchAndDisplayRoute(start, end) {
+  async function fetchAndDisplayRoute(start, end, cafeId) {
+    const cacheKey = `${start.join(',')}-${cafeId}`;
+    if (walkingTimeEstimates[cacheKey]) {
+      // Use cached estimate if available
+      walkingTimeEstimates[cacheKey].then(time => {
+        const cafe = cafes.find(cafe => cafe.id === cafeId);
+        if (cafe) {
+          showCafeInfo(cafe, time);
+        }
+      });
+      return;
+    }
+
     const apiKey = import.meta.env.PUBLIC_OPENROUTE_API_KEY;
     const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${apiKey}&start=${start.join(',')}&end=${end.join(',')}`;
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      const coordinates = data.features[0].geometry.coordinates;
-      const duration = Math.round(data.features[0].properties.summary.duration / 60); // Convert to minutes
+    walkingTimeEstimates[cacheKey] = fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const coordinates = data.features[0].geometry.coordinates;
+        const walkingTime = Math.round(data.features[0].properties.summary.duration / 60); // Convert to minutes
 
-      if (map.getSource('route')) {
-        map.removeLayer('route');
-        map.removeSource('route');
-      }
+        if (map.getSource('route')) {
+          map.removeLayer('route');
+          map.removeSource('route');
+        }
 
-      map.addSource('route', {
-        'type': 'geojson',
-        'data': {
-          'type': 'Feature',
-          'properties': {},
-          'geometry': {
-            'type': 'LineString',
-            'coordinates': coordinates
+        map.addSource('route', {
+          'type': 'geojson',
+          'data': {
+            'type': 'Feature',
+            'properties': {},
+            'geometry': {
+              'type': 'LineString',
+              'coordinates': coordinates
+            }
           }
+        });
+
+        map.addLayer({
+          'id': 'route',
+          'type': 'line',
+          'source': 'route',
+          'layout': {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          'paint': {
+            'line-color': '#dbac6b',
+            'line-width': 6
+          }
+        });
+
+        const bounds = coordinates.reduce((bounds, coord) => {
+          return bounds.extend(coord);
+        }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+        map.fitBounds(bounds, { padding: 50 });
+
+        // Update the cafe info popup with the time estimate
+        const cafe = cafes.find(cafe => cafe.id === cafeId);
+        if (cafe) {
+          showCafeInfo(cafe, walkingTime);
         }
+        return walkingTime;
+      })
+      .catch(error => {
+        console.error('Error fetching route:', error);
+        alert('Unable to fetch walking directions. Please try again later.');
+        return null;
       });
-
-      map.addLayer({
-        'id': 'route',
-        'type': 'line',
-        'source': 'route',
-        'layout': {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        'paint': {
-          'line-color': '#dbac6b', // Lighter coffee color for better visibility
-          'line-width': 6
-        }
-      });
-
-      const bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-
-      map.fitBounds(bounds, { padding: 50 });
-
-      // Display the time estimate
-      const timeEstimateElement = document.createElement('div');
-      timeEstimateElement.id = 'time-estimate';
-      timeEstimateElement.innerHTML = `Estimated walking time: ${duration} minutes`;
-      timeEstimateElement.style.position = 'absolute';
-      timeEstimateElement.style.bottom = '10px';
-      timeEstimateElement.style.left = '10px';
-      timeEstimateElement.style.backgroundColor = '#2d1b0e'; // DaisyUI coffee theme background color
-      timeEstimateElement.style.color = '#dbac6b'; // DaisyUI coffee theme primary color
-      timeEstimateElement.style.padding = '5px';
-      timeEstimateElement.style.borderRadius = '3px';
-      document.getElementById('map').appendChild(timeEstimateElement);
-
-    } catch (error) {
-      console.error('Error fetching route:', error);
-      alert('Unable to fetch walking directions. Please try again later.');
-    }
   }
 
   function clearTimeEstimate() {
-    const timeEstimateElement = document.getElementById('time-estimate');
-    if (timeEstimateElement) {
-      timeEstimateElement.remove();
-    }
+    walkingTimeEstimates = {};
   }
 
-  function showCafeInfo(cafe) {
+  function showCafeInfo(cafe, walkingTime = null) {
+    if (!cafe) {
+      console.error('Cafe not found');
+      return;
+    }
+    currentCafeId = cafe.id;
     const cafeInfoElement = document.getElementById('cafe-info');
     if (!cafeInfoElement) {
       const newCafeInfoElement = document.createElement('div');
@@ -216,6 +228,7 @@ const { cafes } = Astro.props;
         <p class="text-sm text-base-content">${cafe.address}</p>
         <p class="text-sm text-base-content mt-2"><strong>Type:</strong> ${cafe.type || 'N/A'}</p>
         <p class="text-sm text-base-content"><strong>Description:</strong> ${cafe.description || 'No description available.'}</p>
+        ${walkingTime !== null ? `<p class="text-sm text-base-content mt-2"><strong>Estimated walking time:</strong> ${walkingTime} minutes</p>` : ''}
       </div>
       <button class="popup-close" aria-label="Close popup">×</button>
     `;
@@ -250,6 +263,7 @@ const { cafes } = Astro.props;
   if ('geolocation' in navigator) {
     navigator.geolocation.getCurrentPosition(position => {
       const { latitude, longitude } = position.coords;
+      userLocation = [longitude, latitude];
       
       // Add a custom marker for the user's location
       const el = document.createElement('div');
@@ -259,7 +273,7 @@ const { cafes } = Astro.props;
         element: el,
         anchor: 'center'
       })
-        .setLngLat([longitude, latitude])
+        .setLngLat(userLocation)
         .addTo(map);
 
       fitMapToMarkers();
@@ -275,7 +289,12 @@ const { cafes } = Astro.props;
   window.mapFunctions = {
     flyToStore,
     showCafeInfo,
-    fetchAndDisplayRoute,
+    fetchAndDisplayRoute: (start, end, cafeId) => {
+      if (currentCafeId !== cafeId) {
+        clearTimeEstimate();
+      }
+      fetchAndDisplayRoute(start, end, cafeId);
+    },
     clearRoute: () => {
       if (map.getSource('route')) {
         map.removeLayer('route');
